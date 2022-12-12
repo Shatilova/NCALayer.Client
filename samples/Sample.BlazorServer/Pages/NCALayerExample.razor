@@ -1,0 +1,247 @@
+﻿@using NCALayer.Client
+@using NCALayer.Client.CommonUtils;
+@using Newtonsoft.Json;
+@using System.Text;
+
+@inject NCACommonUtilsClient NCACommonUtils
+@inject IJSRuntime JS
+
+@page "/ncalayer"
+
+<div class="container">
+    <h1 class="text-center">NCALayer usage examples</h1>
+
+    <div class="mb-3">
+        <input value="Refresh active tokens" onclick=@GetActiveTokens type="button" class="mr-3" />
+        <InputSelect TValue=NCAStorage? @bind-Value=@SelectedStorage>
+            @if (AvailableStorages.Length == 0)
+            {
+                <option value=null selected>Select digital media storage</option>
+            }
+
+            @foreach (var s in AvailableStorages)
+            {
+                <option value=@s>@s</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div class="container">
+        <h3>1. GetKeyInfo</h3>
+        <input value="GetKeyInfo" onclick=@GetKeyInfo type="button" /><br/>
+        <textarea rows="5" style="width: 100%;" readonly>
+            @KeyInfo
+        </textarea>
+    </div>
+
+    <div class="container">
+        <h3 class="pb-2">2. SignXml</h3>
+        <b class="m-0">Xml</b>
+        <InputTextArea rows="5" style="width: 100%;" @bind-Value=@SignXmlString/><br/>
+        <input type="button" value="Sign" onclick=@SignXml class="mb-3"/><br/>
+        <b class="m-0">Signed Xml</b>
+        <textarea rows="5" style="width: 100%;" readonly>
+            @SignXmlResult
+        </textarea>
+    </div>
+
+    <div class="container">
+        <h3 class="pb-2">3. SignXmls</h3>
+        <p class="m-0"><b>Xmls</b> (any amount of xml can be passed)</p>
+        <textarea rows="5" style="width: 45%;" @bind=@(SignXmlsStrings[0]) />
+        <textarea rows="5" style="width: 45%;" @bind=@(SignXmlsStrings[1]) /><br />
+        <input type="button" value="Sign" onclick=@SignXmls class="mb-3"/><br />
+        <b class="m-0">Signed Xmls</b><br/>
+        <textarea rows="5" style="width: 45%;" readonly>
+            @SignXmlsResult?[0]
+        </textarea>
+        <textarea rows="5" style="width: 45%;" readonly>
+            @SignXmlsResult?[1]
+        </textarea>
+    </div>
+
+    <div class="container">
+        <h3>4. CreateCMSSignatureFromBase64</h3>
+        <span class="m-0"><i>Alert: method is deprecated and may be deleted at any time. Use</i> <b>CreateCAdESFromBase64</b> <i>and</i> <b>ApplyCAdEST</b> <i>instead</i></span><br />
+        <b class="m-0">Raw/base64-encoded data</b>
+        <InputTextArea rows="5" style="width: 100%;" @bind-Value=@CMSFromBase64String /><br />
+        <input 
+            type="checkbox" 
+            checked=@(CMSFromBase64Options.HasFlag(CreateCMSSignatureFromBase64Option.IsBase64Encoded)) 
+            @onchange=@((v) => { CMSFromBase64Options ^= CreateCMSSignatureFromBase64Option.IsBase64Encoded; this.StateHasChanged(); }) />
+            Data already encoded to base64<br/>
+        <input 
+            type="checkbox" 
+            checked=@(CMSFromBase64Options.HasFlag(CreateCMSSignatureFromBase64Option.AttachContent)) 
+            @onchange=@((v) => { CMSFromBase64Options ^= CreateCMSSignatureFromBase64Option.AttachContent; this.StateHasChanged(); }) />
+            Attach data to sign<br/>
+        <input type="button" value="Sign" onclick=@CreateCMSSignatureFromBase64 class="mb-3"/><br />
+        <b class="m-0">Sign</b><br/>
+        <textarea rows="5" style="width: 100%;" readonly>
+            @CMSFromBase64Result
+        </textarea>
+    </div>
+
+    <div class="container">
+        <h3>5. ChangeLocale</h3>
+        <InputSelect TValue=NCALocale @bind-Value=@SelectedLocale>
+            <option value=@NCALocale.Ru>RU</option>
+            <option value=@NCALocale.Kz>KK</option>
+        </InputSelect>
+        <input type="button" value="ChangeLocale" onclick=@ChangeLocale/>
+    </div>
+</div>
+
+@code {
+    // GetActiveTokens
+    NCAStorage[] AvailableStorages = Array.Empty<NCAStorage>();
+    NCAStorage? SelectedStorage;
+
+    // GetKeyInfo
+    string? KeyInfo;
+
+    // SignXml
+    string SignXmlString = File.ReadAllText($"{Directory.GetCurrentDirectory()}/wwwroot/data/data.xml");
+    string? SignXmlResult;
+
+    // SignXmls
+    string[] SignXmlsStrings = new[] { 
+        File.ReadAllText($"{Directory.GetCurrentDirectory()}/wwwroot/data/data.xml"), 
+        File.ReadAllText($"{Directory.GetCurrentDirectory()}/wwwroot/data/data.xml") 
+    };
+    string[]? SignXmlsResult;
+
+    // CreateCMSSignatureFromBase64
+    string CMSFromBase64String = File.ReadAllText($"{Directory.GetCurrentDirectory()}/wwwroot/data/data.json");
+    CreateCMSSignatureFromBase64Option CMSFromBase64Options = CreateCMSSignatureFromBase64Option.AttachContent;
+    string? CMSFromBase64Result;
+
+    // ChangeLocale
+    NCALocale SelectedLocale = NCALocale.Ru;
+
+    protected override Task OnInitializedAsync()
+    {
+        NCACommonUtils.Ping(async (resp) =>
+        {
+            if (!resp.Success)
+                await JS.InvokeVoidAsync("alert", "NCALayer not launched");
+        });
+
+        return base.OnInitializedAsync();
+    }
+
+    void GetActiveTokens() => NCACommonUtils.GetActiveTokens(async (resp) =>
+    {
+        if (!resp.Success)
+        {
+            await JS.InvokeVoidAsync("alert", $"GetActiveTokens error {resp.ResponseState}");
+            return;
+        }
+
+        AvailableStorages = resp.Storages;
+        SelectedStorage = resp.Storages.First();
+        await InvokeAsync(() => StateHasChanged());
+    });
+
+    async void GetKeyInfo()
+    {
+        if (SelectedStorage == null)
+        {
+            await JS.InvokeVoidAsync("alert", "Select digital media storage first");
+            return;
+        }
+
+        NCACommonUtils.GetKeyInfo(SelectedStorage.Value, async (resp) =>
+        {
+            if (!resp.Success)
+            {
+                await JS.InvokeVoidAsync("alert", $"GetKeyInfo error {resp.ResponseState}");
+                return;
+            }
+
+            KeyInfo = JsonConvert.SerializeObject(resp.KeyInfo, Formatting.Indented);
+            await InvokeAsync(() => StateHasChanged());
+        });
+    }
+
+    async void SignXml()
+    {
+        if (SelectedStorage == null)
+        {
+            await JS.InvokeVoidAsync("alert", "Select digital media storage first");
+            return;
+        }
+
+        NCACommonUtils.SignXml(SelectedStorage.Value, NCAKey.Signature, SignXmlString, async (resp) =>
+        {
+            if (!resp.Success)
+            {
+                await JS.InvokeVoidAsync("alert", $"SignXml error {resp.ResponseState}");
+                return;
+            }
+
+            SignXmlResult = resp.SignedXml;
+            await InvokeAsync(() => StateHasChanged());
+        });
+    }
+
+    async void SignXmls()
+    {
+        if (SelectedStorage == null)
+        {
+            await JS.InvokeVoidAsync("alert", "Select digital media storage first");
+            return;
+        }
+
+        NCACommonUtils.SignXmls(SelectedStorage.Value, NCAKey.Signature, SignXmlsStrings, async (resp) =>
+        {
+            if (!resp.Success)
+            {
+                await JS.InvokeVoidAsync("alert", $"SignXmls error {resp.ResponseState}");
+                return;
+            }
+
+            SignXmlsResult = resp.SignedXmls;
+            await InvokeAsync(() => StateHasChanged());
+        });
+    }
+
+    async void CreateCMSSignatureFromBase64()
+    {
+        if (SelectedStorage == null)
+        {
+            await JS.InvokeVoidAsync("alert", "Select digital media storage first");
+            return;
+        }
+
+        NCACommonUtils.CreateCMSSignatureFromBase64(SelectedStorage.Value, NCAKey.Signature, CMSFromBase64String, async (resp) =>
+        {
+            if (!resp.Success)
+            {
+                await JS.InvokeVoidAsync("alert", $"CreateCMSSignatureFromBase64 error {resp.ResponseState}");
+                return;
+            }
+
+            CMSFromBase64Result = resp.SignedCms;
+            await InvokeAsync(() => StateHasChanged());
+        }, CMSFromBase64Options);
+    }
+
+    async void ChangeLocale()
+    {
+        if (SelectedStorage == null)
+        {
+            await JS.InvokeVoidAsync("alert", "Select digital media storage first");
+            return;
+        }
+
+        NCACommonUtils.ChangeLocale(SelectedLocale, async (resp) =>
+        {
+            if (!resp.Success)
+            {
+                await JS.InvokeVoidAsync("alert", $"ChangeLocale error {resp.ResponseState}");
+                return;
+            }
+        });
+    }
+}
