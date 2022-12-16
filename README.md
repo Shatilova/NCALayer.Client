@@ -1,6 +1,10 @@
-﻿# NCALayer.Client
+# NCALayer.Client
 
 Client for working with [NCALayer](https://pki.gov.kz/ncalayer/) via websockets
+
+## Features
+- installation via NuGet ([NCALayer.Client](https://www.nuget.org/packages/NCALayer.Client))
+- targeting .NET Standard 2.0 and any newer specification
 
 ## Usage example
 ``` csharp
@@ -38,4 +42,9 @@ Task GetActiveTokensCallback(NCARawResponse response)
     return Task.CompletedTask;
 }
 ```
-More examples can be found in repository's *samples/* folder
+More examples can be found in *samples/* folder
+
+## TODO
+- improve Distinguished Names parsing in **getKeyInfo**
+- implement **createCAdESFromFile**, **showFileChooser**, **createCMSSignatureFromFile** from *kz.gov.pki.knca.commonUtils*
+- implement out-of-box *kz.gov.pki.knca.basics* module support (NCALayer.Client.NCABasicsClient in future)

@@ -8,9 +8,11 @@
     <Description>Client for working with NCALayer via websockets</Description>
     <PackageIcon>Icon.png</PackageIcon>
     <PackageTags>ncalayer; eds; websocket, websockets</PackageTags>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Code refactored to provide modularity</PackageReleaseNotes>
+    <RepositoryUrl>https://github.com/Shatilova/NCALayer.Client</RepositoryUrl>
   </PropertyGroup>
 	
   <ItemGroup>
