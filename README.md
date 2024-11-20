@@ -1,5 +1,12 @@
 # NCALayer.Client
 
+___
+### Remarks of 2024
+#### It’s better to use [NCANode](https://github.com/malikzh/NCANode) for digital signatures instead of NCALayer and this package
+
+*The remainder of this document is left as is.*
+___
+
 Client for working with [NCALayer](https://pki.gov.kz/ncalayer/) via websockets
 
 ## Features
